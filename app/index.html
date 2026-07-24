@@ -51,6 +51,27 @@
   .empty .em{font-size:40px; display:block; margin-bottom:10px}
   .skel{height:210px; border-radius:var(--radius); background:linear-gradient(100deg,var(--card) 30%,var(--card2) 50%,var(--card) 70%); background-size:200% 100%; animation:sh 1.2s infinite}
   @keyframes sh{to{background-position:-200% 0}}
+  /* Discovery homepage */
+  .section{margin:18px 0 6px}
+  .shead{display:flex; align-items:baseline; justify-content:space-between; margin:0 2px 10px}
+  .shead h2{font-size:16px; font-weight:800; margin:0; letter-spacing:.2px}
+  .shead .see{font-size:12.5px; font-weight:700; color:var(--accent); cursor:pointer; white-space:nowrap}
+  .shelf{display:flex; gap:12px; overflow-x:auto; scrollbar-width:none; padding:2px 14px 6px; margin:0 -14px}
+  .shelf::-webkit-scrollbar{display:none}
+  .si{flex:0 0 128px; width:128px; cursor:pointer}
+  .si .sc{height:170px; border-radius:14px; display:flex; align-items:flex-end; padding:9px; position:relative; box-shadow:var(--shadow)}
+  .si .sc .ini{font-size:26px; font-weight:800; color:rgba(255,255,255,.92); text-shadow:0 2px 8px rgba(0,0,0,.3)}
+  .si .sc .aud{position:absolute; top:7px; right:7px; background:rgba(0,0,0,.35); border-radius:7px; padding:2px 6px; font-size:11px}
+  .si .st{font-size:12.5px; font-weight:700; line-height:1.25; margin:7px 1px 1px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+  .si .sa{font-size:11px; color:var(--muted); margin:0 1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .authchips{display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; padding:2px 14px 4px; margin:0 -14px}
+  .authchips::-webkit-scrollbar{display:none}
+  .authchip{flex:0 0 auto; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:9px 13px; cursor:pointer; display:flex; flex-direction:column; gap:1px; min-width:110px}
+  .authchip .an{font-size:13px; font-weight:700; white-space:nowrap}
+  .authchip .ac{font-size:11px; color:var(--muted)}
+  .genretiles{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .gtile{border-radius:14px; padding:14px; cursor:pointer; color:#fff; font-weight:800; font-size:15px; min-height:66px; display:flex; flex-direction:column; justify-content:center; box-shadow:var(--shadow)}
+  .gtile .gc{font-size:12px; font-weight:600; opacity:.85; margin-top:3px}
   .sheet{position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.5); display:none; align-items:flex-end}
   .sheet.open{display:flex}
   .sheetc{background:var(--bg); width:100%; max-width:760px; margin:0 auto; max-height:92vh; border-radius:22px 22px 0 0; overflow-y:auto; padding:0 0 24px; animation:up .28s cubic-bezier(.2,.8,.2,1)}
@@ -104,6 +125,7 @@
     </select>
   </div>
 
+  <div id="home" style="display:none"></div>
   <div class="grid" id="grid"></div>
   <button class="more" id="more" style="display:none">Yana yuklash</button>
   <div class="empty" id="empty" style="display:none"><span class="em">🔍</span>Hech narsa topilmadi</div>
@@ -131,7 +153,8 @@ function indexBook(b){b._t=canon(b.t);b._a=canon(b.a);b._g=canon(b.g);b._sm=cano
 
 let DB={books:[],genres:[],audiences:[],types:[],bot:''};
 let byId={};
-let state={q:'',genre:'',audience:'',type:'',sort:'relevance',view:'browse',shown:24,result:[]};
+let state={q:'',genre:'',audience:'',type:'',sort:'relevance',view:'browse',shown:24,result:[],all:false};
+let HOME={newest:[],audio:[],authors:[],genres:[]};
 let favs=new Set();
 const PAGE=24;
 
@@ -190,7 +213,7 @@ function chipRow(el,items,cur,key,fmt){
   el.innerHTML=(key==='genre'?`<span class="chip ${!cur?'on':''}" data-v="">Barchasi</span>`:'')+
     items.map(x=>`<span class="chip ${cur===x.v?'on':''}" data-v="${esc(x.v)}">${fmt(x)}<span class="n">${x.c}</span></span>`).join('');
   el.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{
-    const v=c.dataset.v; state[key]=(state[key]===v&&key!=='genre')?'':v; haptic(); renderChips(); run();
+    const v=c.dataset.v; state[key]=(state[key]===v&&key!=='genre')?'':v; state.all=false; haptic(); renderChips(); run();
   });
 }
 function renderChips(){
@@ -198,7 +221,7 @@ function renderChips(){
   const f=$('#filters');
   f.innerHTML=DB.types.map(x=>`<span class="chip ${state.type===x.v?'on':''}" data-k="type" data-v="${x.v}">${x.v==='audio'?'🎧':'📄'} ${esc(x.l)}<span class="n">${x.c}</span></span>`).join('')+
     DB.audiences.map(x=>`<span class="chip ${state.audience===x.v?'on':''}" data-k="audience" data-v="${esc(x.v)}">${esc(x.l)}<span class="n">${x.c}</span></span>`).join('');
-  f.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{const k=c.dataset.k;state[k]=state[k]===c.dataset.v?'':c.dataset.v;haptic();renderChips();run();});
+  f.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{const k=c.dataset.k;state[k]=state[k]===c.dataset.v?'':c.dataset.v;state.all=false;haptic();renderChips();run();});
 }
 
 function cardHtml(b){
@@ -224,7 +247,31 @@ function render(){
   const noun=state.view==='favorites'?'saqlangan':'kitob';
   $('#count').textContent=state.result.length?`${state.result.length} ta ${noun}`:'';
 }
-function run(){compute();render();}
+// ---- discovery homepage (shown when browsing with no query/filter) ----
+function buildHome(){
+  HOME.newest=DB.books.slice(0,18);
+  HOME.audio=DB.books.filter(b=>b.ha).slice(0,18);
+  const ac={};
+  for(const b of DB.books){const a=(b.a||'').trim();if(a&&a.length>1&&!/noma'?lum/i.test(a))ac[a]=(ac[a]||0)+1;}
+  HOME.authors=Object.entries(ac).filter(([a,c])=>c>=2).sort((x,y)=>y[1]-x[1]).slice(0,16).map(([a,c])=>({a,c}));
+  HOME.genres=DB.genres.slice(0,5).map(g=>({v:g.v,c:g.c,books:DB.books.filter(b=>b.g===g.v).slice(0,18)}));
+}
+function siHtml(b){const[c1,c2]=coverFor(b.i);return `<div class="si" data-id="${esc(b.i)}"><div class="sc" style="background:linear-gradient(135deg,${c1},${c2})">${b.ha?'<span class="aud">🎧</span>':''}<span class="ini">${esc(initials(b.t))}</span></div><div class="st">${esc(b.t)}</div><div class="sa">${esc(b.a||'')}</div></div>`;}
+function shelf(title,books,see){return `<div class="section"><div class="shead"><h2>${esc(title)}</h2>${see?`<span class="see" ${see}>Barchasi →</span>`:''}</div><div class="shelf">${books.map(siHtml).join('')}</div></div>`;}
+function renderHome(){
+  const h=$('#home');let html='';
+  if(HOME.newest.length)html+=shelf("🆕 Yangi qo'shilgan",HOME.newest,'data-see="newest"');
+  if(HOME.authors.length)html+=`<div class="section"><div class="shead"><h2>✍️ Mashhur mualliflar</h2></div><div class="authchips">${HOME.authors.map(a=>`<div class="authchip" data-auth="${esc(a.a)}"><span class="an">${esc(a.a)}</span><span class="ac">${a.c} ta kitob</span></div>`).join('')}</div></div>`;
+  if(HOME.audio.length)html+=shelf("🎧 Audiokitoblar",HOME.audio,'data-see="audio"');
+  for(const g of HOME.genres)html+=shelf(g.v,g.books,`data-see="genre" data-v="${esc(g.v)}"`);
+  h.innerHTML=html;
+  h.querySelectorAll('.si').forEach(el=>el.onclick=()=>openDetail(el.dataset.id));
+  h.querySelectorAll('[data-auth]').forEach(el=>el.onclick=()=>{state.all=false;$('#q').value=el.dataset.auth;state.q=el.dataset.auth;$('#clr').style.display='block';haptic();run();window.scrollTo(0,0);});
+  h.querySelectorAll('[data-see]').forEach(el=>el.onclick=()=>{const s=el.dataset.see;if(s==='newest'){state.all=true;state.sort='newest';$('#sort').value='newest';}else if(s==='audio'){state.type='audio';renderChips();}else if(s==='genre'){state.genre=el.dataset.v;renderChips();}haptic();run();window.scrollTo(0,0);});
+}
+function isHome(){return state.view==='browse'&&!state.q&&!state.genre&&!state.audience&&!state.type&&!state.all;}
+function showHome(on){$('#home').style.display=on?'block':'none';$('#grid').style.display=on?'none':'grid';$('.bar').style.display=on?'none':'flex';if(on){$('#more').style.display='none';$('#empty').style.display='none';}}
+function run(){if(isHome()){renderHome();showHome(true);}else{compute();render();showHome(false);}}
 
 function toggleFav(id){
   haptic('medium');
@@ -268,15 +315,15 @@ function closeSheet(){$('#sheet').classList.remove('open');tg?.BackButton?.hide(
 
 // events
 let deb;
-$('#q').addEventListener('input',e=>{state.q=e.target.value.trim();$('#clr').style.display=state.q?'block':'none';clearTimeout(deb);deb=setTimeout(()=>{if(state.view!=='browse'){state.view='browse';setTabs();}run();},200);});
-$('#clr').onclick=()=>{$('#q').value='';state.q='';$('#clr').style.display='none';run();};
+$('#q').addEventListener('input',e=>{state.q=e.target.value.trim();state.all=false;$('#clr').style.display=state.q?'block':'none';clearTimeout(deb);deb=setTimeout(()=>{if(state.view!=='browse'){state.view='browse';setTabs();}run();},200);});
+$('#clr').onclick=()=>{$('#q').value='';state.q='';state.all=false;$('#clr').style.display='none';run();};
 $('#sort').onchange=e=>{state.sort=e.target.value;run();};
 $('#more').onclick=()=>{state.shown+=PAGE;render();};
 $('#sheet').onclick=e=>{if(e.target.id==='sheet')closeSheet();};
 function setTabs(){$('#tabBrowse').classList.toggle('on',state.view==='browse');$('#tabFav').classList.toggle('on',state.view==='favorites');}
-$('#tabBrowse').onclick=()=>{if(state.view==='browse')return;state.view='browse';setTabs();run();};
-$('#tabFav').onclick=()=>{state.view='favorites';setTabs();run();};
-window.addEventListener('scroll',()=>{if(window.innerHeight+window.scrollY>=document.body.offsetHeight-500&&state.result.length>state.shown){state.shown+=PAGE;render();}});
+$('#tabBrowse').onclick=()=>{state.view='browse';state.q='';$('#q').value='';$('#clr').style.display='none';state.genre='';state.audience='';state.type='';state.all=false;renderChips();setTabs();run();window.scrollTo(0,0);};
+$('#tabFav').onclick=()=>{state.view='favorites';state.all=false;setTabs();run();};
+window.addEventListener('scroll',()=>{if(isHome())return;if(window.innerHeight+window.scrollY>=document.body.offsetHeight-500&&state.result.length>state.shown){state.shown+=PAGE;render();}});
 
 function applyTheme(){if(!tg)return;const p=tg.themeParams||{};const set=(k,v)=>{if(v)document.documentElement.style.setProperty(k,v);};
   set('--bg',p.bg_color);set('--card',p.secondary_bg_color);set('--text',p.text_color);set('--muted',p.hint_color);set('--accent',p.button_color);set('--accent2',p.button_color);if(p.section_bg_color)set('--card2',p.section_bg_color);}
@@ -287,6 +334,7 @@ async function boot(){
   try{
     const r=await fetch('./books.json',{cache:'no-cache'});DB=await r.json();
     byId={};for(const b of DB.books){byId[b.i]=b;indexBook(b);}
+    buildHome();
   }catch(e){$('#count').textContent='';$('#grid').innerHTML='';$('#empty').style.display='block';$('#empty').innerHTML='<span class="em">⚠️</span>Ma\'lumot yuklanmadi';return;}
   await loadFavs();
   renderChips();run();

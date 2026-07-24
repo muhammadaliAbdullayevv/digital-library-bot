@@ -119,7 +119,15 @@ const COVERS=[['#6c8cff','#a06bff'],['#ff7a59','#ff4d8d'],['#3ddc97','#2bb0c9'],
 function coverFor(id){let h=0;const s=String(id||'');for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return COVERS[h%COVERS.length];}
 function initials(t){return String(t||'?').replace(/[^\p{L}\p{N} ]/gu,'').trim().split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase()||'📖';}
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
-function norm(s){return String(s||'').toLowerCase().replace(/['ʻʼ`']/g,'').replace(/[^\p{L}\p{N} ]/gu,' ');}
+// Uzbek Cyrillic -> Latin, so a Latin query matches a Cyrillic title and vice-versa.
+const CYR={'а':'a','б':'b','в':'v','г':'g','ғ':'g','д':'d','е':'e','ё':'yo','ж':'j','з':'z','и':'i','й':'y','к':'k','қ':'q','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ў':'o','ф':'f','х':'x','ҳ':'h','ц':'ts','ч':'ch','ш':'sh','щ':'sh','ъ':'','ь':'','э':'e','ю':'yu','я':'ya'};
+// Canonical search key: lowercase, transliterate Cyrillic, drop apostrophes (o' == oʻ == ў),
+// then keep letters/digits only. Both the query and the book text pass through this.
+function canon(s){s=String(s||'').toLowerCase();let o='';for(const ch of s)o+=(CYR[ch]!==undefined?CYR[ch]:ch);return o.replace(/[ʻʼ'`'‘’ʼ]/g,'').replace(/[^\p{L}\p{N} ]/gu,' ').replace(/\s+/g,' ').trim();}
+const norm=canon;
+// True when strings are within one edit (insert/delete/substitute) — cheap typo tolerance.
+function within1(a,b){if(a===b)return true;const la=a.length,lb=b.length;if(la===lb){const d=[];for(let k=0;k<la;k++)if(a[k]!==b[k]){d.push(k);if(d.length>2)break;}if(d.length===2&&d[1]===d[0]+1&&a[d[0]]===b[d[1]]&&a[d[1]]===b[d[0]])return true;}if(Math.abs(la-lb)>1)return false;let i=0,j=0,e=0;while(i<la&&j<lb){if(a[i]===b[j]){i++;j++;continue;}if(++e>1)return false;if(la>lb)i++;else if(lb>la)j++;else{i++;j++;}}if(i<la||j<lb)e++;return e<=1;}
+function indexBook(b){b._t=canon(b.t);b._a=canon(b.a);b._g=canon(b.g);b._sm=canon(b.sm);b._subs=canon((b.s||[]).join(' '));b._w=(b._t+' '+b._a).split(' ').filter(w=>w.length>=3);}
 
 let DB={books:[],genres:[],audiences:[],types:[],bot:''};
 let byId={};
@@ -141,16 +149,19 @@ function saveFavs(){cloudSet(JSON.stringify([...favs].slice(0,500)));}
 
 // ---- search / filter / sort (all client-side) ----
 function score(b,terms){
-  const t=norm(b.t),a=norm(b.a),g=norm(b.g),sm=norm(b.sm),subs=norm((b.s||[]).join(' '));
+  if(b._t===undefined)indexBook(b);
   let sc=0;
   for(const term of terms){
     if(!term)continue;
     let s=0;
-    if(t.startsWith(term))s=120;else if(t.includes(term))s=60;
-    if(a.includes(term))s=Math.max(s,35);
-    if(g.includes(term))s=Math.max(s,25);
-    if(subs.includes(term))s=Math.max(s,20);
-    if(sm.includes(term))s=Math.max(s,10);
+    if(b._t.startsWith(term))s=120;else if(b._t.includes(term))s=60;
+    if(b._a.includes(term))s=Math.max(s,35);
+    if(b._g.includes(term))s=Math.max(s,25);
+    if(b._subs.includes(term))s=Math.max(s,20);
+    if(b._sm.includes(term))s=Math.max(s,10);
+    if(s===0&&term.length>=4){    // typo fallback: edit-distance<=1 vs title/author words
+      for(const w of b._w){if(within1(w,term)){s=40;break;}}
+    }
     if(s===0)return 0;           // every term must match somewhere (AND)
     sc+=s;
   }
@@ -275,7 +286,7 @@ async function boot(){
   $('#grid').innerHTML=Array(6).fill('<div class="skel"></div>').join('');
   try{
     const r=await fetch('./books.json',{cache:'no-cache'});DB=await r.json();
-    byId={};for(const b of DB.books)byId[b.i]=b;
+    byId={};for(const b of DB.books){byId[b.i]=b;indexBook(b);}
   }catch(e){$('#count').textContent='';$('#grid').innerHTML='';$('#empty').style.display='block';$('#empty').innerHTML='<span class="em">⚠️</span>Ma\'lumot yuklanmadi';return;}
   await loadFavs();
   renderChips();run();

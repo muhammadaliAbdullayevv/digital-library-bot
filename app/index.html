@@ -41,6 +41,7 @@
   .cover{height:118px; display:flex; align-items:flex-end; padding:10px; position:relative}
   .cover .ini{font-size:30px; font-weight:800; color:rgba(255,255,255,.92); line-height:1; text-shadow:0 2px 8px rgba(0,0,0,.3)}
   .cover .aud{position:absolute; top:8px; right:8px; background:rgba(0,0,0,.35); border-radius:8px; padding:3px 7px; font-size:11px; font-weight:700; color:#fff}
+  .ci{position:absolute; inset:0; width:100%; height:100%; object-fit:cover}
   .fav{position:absolute; top:8px; left:8px; width:30px; height:30px; border-radius:50%; background:rgba(0,0,0,.32); display:flex; align-items:center; justify-content:center; font-size:15px; z-index:2}
   .meta{padding:9px 10px 11px; display:flex; flex-direction:column; gap:4px; flex:1}
   .meta .t{font-weight:700; font-size:13.5px; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
@@ -228,6 +229,7 @@ function cardHtml(b){
   const[c1,c2]=coverFor(b.i);const fav=favs.has(b.i);
   return `<div class="book" data-id="${esc(b.i)}">
     <div class="cover" style="background:linear-gradient(135deg,${c1},${c2})">
+      ${b.hc?`<img class="ci" src="covers/${encodeURIComponent(b.i)}.jpg" loading="lazy" onerror="this.remove()">`:''}
       <span class="fav" data-fav="${esc(b.i)}">${fav?'❤️':'🤍'}</span>
       ${b.ha?'<span class="aud">🎧</span>':''}
       <span class="ini">${esc(initials(b.t))}</span>
@@ -256,7 +258,7 @@ function buildHome(){
   HOME.authors=Object.entries(ac).filter(([a,c])=>c>=2).sort((x,y)=>y[1]-x[1]).slice(0,16).map(([a,c])=>({a,c}));
   HOME.genres=DB.genres.slice(0,5).map(g=>({v:g.v,c:g.c,books:DB.books.filter(b=>b.g===g.v).slice(0,18)}));
 }
-function siHtml(b){const[c1,c2]=coverFor(b.i);return `<div class="si" data-id="${esc(b.i)}"><div class="sc" style="background:linear-gradient(135deg,${c1},${c2})">${b.ha?'<span class="aud">🎧</span>':''}<span class="ini">${esc(initials(b.t))}</span></div><div class="st">${esc(b.t)}</div><div class="sa">${esc(b.a||'')}</div></div>`;}
+function siHtml(b){const[c1,c2]=coverFor(b.i);return `<div class="si" data-id="${esc(b.i)}"><div class="sc" style="background:linear-gradient(135deg,${c1},${c2})">${b.hc?`<img class="ci" src="covers/${encodeURIComponent(b.i)}.jpg" loading="lazy" onerror="this.remove()">`:''}${b.ha?'<span class="aud">🎧</span>':''}<span class="ini">${esc(initials(b.t))}</span></div><div class="st">${esc(b.t)}</div><div class="sa">${esc(b.a||'')}</div></div>`;}
 function shelf(title,books,see){return `<div class="section"><div class="shead"><h2>${esc(title)}</h2>${see?`<span class="see" ${see}>Barchasi →</span>`:''}</div><div class="shelf">${books.map(siHtml).join('')}</div></div>`;}
 function renderHome(){
   const h=$('#home');let html='';
@@ -290,7 +292,7 @@ function openDetail(id){
   const audLabel=(DB.audiences.find(a=>a.v===b.au)||{}).l;
   const typeTxt=b.ha?(b.ap>1?`Audiokitob · ${b.ap} qism`:'Audiokitob'):'PDF / matn';
   c.innerHTML=`
-    <div class="dhero" style="background:linear-gradient(135deg,${c1},${c2})"><div class="dgrip"></div><span class="ini">${esc(initials(b.t))}</span></div>
+    <div class="dhero" style="background:linear-gradient(135deg,${c1},${c2})">${b.hc?`<img class="ci" src="covers/${encodeURIComponent(b.i)}.jpg" onerror="this.remove()">`:''}<div class="dgrip"></div><span class="ini">${esc(initials(b.t))}</span></div>
     <div class="dbody">
       <h2 class="dtitle">${esc(b.t)}</h2>
       <div class="dauthor">${esc(b.a||'Noma\'lum muallif')}</div>
